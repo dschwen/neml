@@ -103,7 +103,8 @@ class DuplicateNode: public std::exception {
   {
     std::stringstream ss;
 
-    ss << "Multiple nodes with name " << node_name_ << " were found!";
+    ss << "Multiple nodes with name " << node_name_ << " were found near line "
+        << line_ << "!";
 
     return ss.str().c_str();
   };

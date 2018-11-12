@@ -334,7 +334,6 @@ class ChabocheFlowRule: public ViscoPlasticFlowRule {
   std::shared_ptr<NonAssociativeHardening> hardening_;
   std::shared_ptr<FluidityModel> fluidity_;
   const std::shared_ptr<const Interpolate> n_;
-  const bool recovery_;
 };
 
 static Register<ChabocheFlowRule> regChabocheFlowRule;

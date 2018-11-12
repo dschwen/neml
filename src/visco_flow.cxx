@@ -475,8 +475,7 @@ ChabocheFlowRule::ChabocheFlowRule(std::shared_ptr<YieldSurface> surface,
                                    std::shared_ptr<NonAssociativeHardening> hardening,
                                    std::shared_ptr<FluidityModel> fluidity,
                                    std::shared_ptr<Interpolate> n) :
-    surface_(surface), hardening_(hardening), fluidity_(fluidity), n_(n),
-    recovery_(false)
+    surface_(surface), hardening_(hardening), fluidity_(fluidity), n_(n)
 {
   
 }

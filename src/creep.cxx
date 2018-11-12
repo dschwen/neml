@@ -94,7 +94,7 @@ RegionKMCreep::RegionKMCreep(std::vector<double> cuts, std::vector<double> A,
                              double eps0, 
                              std::shared_ptr<LinearElasticModel> emodel) :
     cuts_(cuts), A_(A), B_(B), kboltz_(kboltz), b_(b), eps0_(eps0), 
-    b3_(pow(b,3)), emodel_(emodel)
+    b3_(pow(b_,3)), emodel_(emodel)
 {
 
 }
