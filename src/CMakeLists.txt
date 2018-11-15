@@ -13,6 +13,7 @@ endmacro(pybind)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 add_library(neml SHARED 
       objects.cxx
+      state.cxx
       models.cxx 
       nemlmath.cxx 
       solvers.cxx 
@@ -37,6 +38,7 @@ if (WRAP_PYTHON)
 
       # Actual modules
       pybind(objects)
+      pybind(state)
       pybind(nemlmath)
       pybind(solvers)
       pybind(elasticity)
