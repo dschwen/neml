@@ -9,6 +9,10 @@
 #include "NOX_LAPACK_Group.H"
 #endif
 
+#ifdef SOLVER_SNLS
+#include "SNLS_TrDLDenseG.h"
+#endif
+
 namespace neml {
 
 /// Trial state
@@ -63,6 +67,37 @@ class NOXSolver: public NOX::LAPACK::Interface {
 /// Interface to nox
 int nox(Solvable * system, double * x, TrialState * ts, 
         double tol, int miter, bool verbose);
+
+#endif
+
+#ifdef SOLVER_SNLS
+
+/// Solver class used by SNLS
+class SNLSSolver: public snls::SNLSTrDlDenseG {
+ public:
+  __snls_hdev__ SNLSSolver(Solvable * system, double * x, TrialState * ts,
+                           double tol, int miter, bool verbose);
+  __snls_hdev__ ~SNLSSolver();
+  __snls_hdev__ virtual bool computeRJ(double * const R, double * const J, 
+                                       const double * const x);
+
+ private:
+  Solvable * system_;
+  double * x_;
+  TrialState * ts_;
+  double tol_;
+  int miter_;
+  bool verbose_;
+  snls::TrDeltaControl delta_;
+  // I guess this is scratch?
+  double * nx_storage_;
+  double * nxXx_storage_;
+  int * ni_storage_;
+};
+
+/// Interface to SNLS
+int snls(Solvable * system, double * x, TrialState * ts, 
+         double tol, int miter, bool verbose);
 
 #endif
 

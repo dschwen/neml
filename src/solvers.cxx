@@ -20,6 +20,8 @@ int solve(Solvable * system, double * x, TrialState * ts,
 #elif SOLVER_NEWTON
   // Actually selected the newton solver
   return newton(system, x, ts, tol, miter, verbose, relative);
+#elif SOLVER_SNLS
+  return snls(system, x, ts, tol, miter, verbose);
 #else
   // Default solver: plain NR
   return newton(system, x, ts, tol, miter, verbose, relative);
@@ -274,6 +276,81 @@ int nox(Solvable * system, double * x, TrialState * ts,
 
   return 0;
 }
-
 #endif
+
+// Start SNLS stuff
+#ifdef SOLVER_SNLS
+
+__snls_hdev__
+SNLSSolver::SNLSSolver(Solvable * system, double * x, TrialState * ts,
+                       double tol, int miter, bool verbose) :
+    SNLSTrDlDenseG(), system_(system), x_(x), ts_(ts), tol_(tol),
+    miter_(miter), verbose_(verbose)
+{
+  delta_._deltaInit = 1.0;
+
+  nx_storage_ = new double [system->nparams() *
+      snls::SNLSTrDlDenseG::nxMultTrDlDenseG];
+  nxXx_storage_ = new double [system->nparams() * system->nparams() *
+      snls::SNLSTrDlDenseG::nxXxMultTrDlDenseG];
+  ni_storage_ = new int [system->nparams() * 
+      snls::SNLSTrDlDenseG::niMultTrDlDenseG];
+  
+  int output_level;
+  if (verbose) {
+    output_level = 1;
+  }
+  else {
+    output_level = 0;
+  }
+
+  this->setupSolver(system->nparams(),
+                    nx_storage_, nxXx_storage_, ni_storage_,
+                    miter_, tol_, &delta_, output_level);
+
+  // No idea what Nathan's intent here is
+  system_->init_x(_x, ts);
+  double * dummyR = new double [system_->nparams()];
+  system_->RJ(_x, ts_, dummyR, _J);
+  delete [] dummyR;
+}
+
+__snls_hdev__
+SNLSSolver::~SNLSSolver()
+{
+  delete [] nx_storage_;
+  delete [] nxXx_storage_;
+  delete [] ni_storage_;
+}
+
+__snls_hdev__
+bool SNLSSolver::computeRJ(double * const R, double * const J, 
+                           const double * const x)
+{
+  int i = system_->RJ(x, ts_, R, J);
+
+  if (i != 0) return false;
+  return true;
+}
+
+int snls(Solvable * system, double * x, TrialState * ts, 
+         double tol, int miter, bool verbose)
+{
+  SNLSSolver solver(system, x, ts, tol, miter, verbose);
+
+  snls::SNLSTrDlDenseG::SNLSStatus_t status = solver.solve();
+
+  if (status != snls::SNLSTrDlDenseG::converged) {
+    std::cout << status << std::endl;
+    return MAX_ITERATIONS;
+  }
+
+  std::copy(solver.getXPntr(), solver.getXPntr() + system->nparams(), x);
+
+  return 0;
+}
+
+
+#endif // SOLVER_SNLS
+
 } // namespace neml
