@@ -19,17 +19,20 @@
 
 namespace neml {
 
+/// perform {variable} substitution in DOM tree
+void recurseSubstitute(rapidxml::xml_node<> * node, std::map<std::string, std::string> substitutions);
+
 /// Parse from a string to a shared_ptr
-std::shared_ptr<NEMLModel> parse_string(std::string input);
+  std::shared_ptr<NEMLModel> parse_string(std::string input, std::map<std::string, std::string> substitutions = std::map<std::string, std::string>());
 
 /// Parse from a string to a unique_ptr
-std::unique_ptr<NEMLModel> parse_string_unique(std::string input, std::string mname);
+std::unique_ptr<NEMLModel> parse_string_unique(std::string input, std::string mname, std::map<std::string, std::string> substitutions = std::map<std::string, std::string>());
 
 /// Parse from file to a shared_ptr
-NEML_EXPORT std::shared_ptr<NEMLModel> parse_xml(std::string fname, std::string mname);
+NEML_EXPORT std::shared_ptr<NEMLModel> parse_xml(std::string fname, std::string mname, std::map<std::string, std::string> substitutions = std::map<std::string, std::string>());
 
 /// Parse from file to a unique_ptr
-NEML_EXPORT std::unique_ptr<NEMLModel> parse_xml_unique(std::string fname, std::string mname);
+NEML_EXPORT std::unique_ptr<NEMLModel> parse_xml_unique(std::string fname, std::string mname, std::map<std::string, std::string> substitutions = std::map<std::string, std::string>());
 
 /// Extract a NEMLObject from a xml node as a unique_ptr
 NEML_EXPORT std::unique_ptr<NEMLObject> get_object_unique(const rapidxml::xml_node<> * node);
@@ -38,7 +41,7 @@ NEML_EXPORT std::unique_ptr<NEMLObject> get_object_unique(const rapidxml::xml_no
 std::shared_ptr<NEMLObject> get_object(const rapidxml::xml_node<> * node);
 
 /// Actually get a valid parameter set from a node
- ParameterSet get_parameters(const rapidxml::xml_node<> * node);
+ParameterSet get_parameters(const rapidxml::xml_node<> * node);
 
 /// Extract a vector of NEMLObjects from an xml node
 std::vector<std::shared_ptr<NEMLObject>> get_vector_object(const rapidxml::xml_node<> * node);
@@ -199,6 +202,29 @@ class UnregisteredXML: public std::exception {
  private:
   std::string name_, type_, message_;
 
+};
+
+/// An unknown {variable} was found in the XML
+class UnknownVariableXML: public std::exception {
+ public:
+  UnknownVariableXML(rapidxml::xml_attribute<> *attr, std::string var)
+  {
+    message_ = std::string(attr->name()) + " = '" + attr->value() + "'!";
+    auto parent = attr->parent();
+    while (parent) {
+      message_ = std::string(parent->name()) + " -> " + message_;
+      parent = parent->parent();
+    }
+    message_ = "No value provided for variable '" + var + "' in XML attribute\n" + message_;
+  };
+
+  const char * what() const throw ()
+  {
+    return message_.c_str();
+  };
+
+ private:
+  std::string message_;
 };
 
 } // namespace neml
