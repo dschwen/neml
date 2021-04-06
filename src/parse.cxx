@@ -2,7 +2,7 @@
 
 namespace neml {
 
-void recurseSubstitute(rapidxml::xml_node<> * node, std::map<std::string, std::string> substitutions)
+void recurseSubstitute(rapidxml::xml_node<> * node, const std::map<std::string, std::string> & substitutions, std::set<std::string> & used_keys)
 {
   auto * doc = node->document();
 
@@ -21,6 +21,7 @@ void recurseSubstitute(rapidxml::xml_node<> * node, std::map<std::string, std::s
       if (sub == substitutions.end())
         throw UnknownVariableXML(attr, var);
       value = value.replace(open, close - open, sub->second);
+      used_keys.insert(var);
 
       open = value.find("{", open + 1);
       close = value.find("}", open);
@@ -40,21 +41,41 @@ void recurseSubstitute(rapidxml::xml_node<> * node, std::map<std::string, std::s
   }
 
   // iterate over all child nodes
-	for (rapidxml::xml_node<> * child = node->first_node(); child; child = child->next_sibling())
-    recurseSubstitute(child, substitutions);
+  for (rapidxml::xml_node<> * child = node->first_node(); child; child = child->next_sibling())
+    recurseSubstitute(child, substitutions, used_keys);
 }
 
-std::shared_ptr<NEMLModel> parse_string(std::string input, std::map<std::string, std::string> substitutions)
+rapidxml::xml_node<> * processNode(rapidxml::xml_document<> & doc, std::string mname, const std::map<std::string, std::string> & substitutions)
+{
+  // Grab the root node
+  rapidxml::xml_node<> * root = doc.first_node();
+
+  // Find the node with the right name
+  rapidxml::xml_node<> * found = (mname == "" ? root->first_node(mname.c_str()) : root);
+  if (!found)
+    throw ModelNotFound(mname);
+
+  // make a set of used substitutions
+  std::set<std::string> used_keys;
+
+  // substitute {variables} in DOM tree
+  recurseSubstitute(found, substitutions, used_keys);
+
+  // check if all keys were used
+  if (used_keys.size() < substitutions.size())
+  {
+
+  }
+
+  return found;
+}
+
+std::shared_ptr<NEMLModel> parse_string(std::string input, std::string mname, const std::map<std::string, std::string> & substitutions)
 {
   // Parse the string to the rapidxml representation
   rapidxml::xml_document<> doc;
   doc.parse<0>(&input[0]);
-
-  // The model is the root node
-  rapidxml::xml_node<> * found = doc.first_node();
-
-  // substitute {variables} in DOM tree
-  recurseSubstitute(found, substitutions);
+  auto found = processNode(doc, mname, substitutions);
 
   // Get the NEMLObject
   std::shared_ptr<NEMLObject> obj = get_object(found);
@@ -69,20 +90,12 @@ std::shared_ptr<NEMLModel> parse_string(std::string input, std::map<std::string,
   }
 }
 
-std::unique_ptr<NEMLModel> parse_string_unique(std::string input, std::string mname, std::map<std::string, std::string> substitutions)
+std::unique_ptr<NEMLModel> parse_string_unique(std::string input, std::string mname, const std::map<std::string, std::string> & substitutions)
 {
   // Parse the string to the rapidxml representation
   rapidxml::xml_document<> doc;
   doc.parse<0>(&input[0]);
-
-  // Grab the root node
-  rapidxml::xml_node<> * root = doc.first_node();
-
-  // Find the node with the right name
-  rapidxml::xml_node<> * found = root->first_node(mname.c_str());
-
-  // substitute {variables} in DOM tree
-  recurseSubstitute(found, substitutions);
+  auto found = processNode(doc, mname, substitutions);
 
   // Get the NEMLObject
   std::unique_ptr<NEMLObject> obj = get_object_unique(found);
@@ -97,21 +110,13 @@ std::unique_ptr<NEMLModel> parse_string_unique(std::string input, std::string mn
   }
 }
 
-std::shared_ptr<NEMLModel> parse_xml(std::string fname, std::string mname, std::map<std::string, std::string> substitutions)
+std::shared_ptr<NEMLModel> parse_xml(std::string fname, std::string mname, const std::map<std::string, std::string> & substitutions)
 {
   // Parse the XML file
   rapidxml::file <> xmlFile(fname.c_str());
   rapidxml::xml_document<> doc;
   doc.parse<0>(xmlFile.data());
-
-  // Grab the root node
-  rapidxml::xml_node<> * root = doc.first_node();
-
-  // Find the node with the right name
-  rapidxml::xml_node<> * found = root->first_node(mname.c_str());
-
-  // substitute {variables} in DOM tree
-  recurseSubstitute(found, substitutions);
+  auto found = processNode(doc, mname, substitutions);
 
   // Get the NEMLObject
   std::shared_ptr<NEMLObject> obj = get_object(found);
@@ -126,21 +131,13 @@ std::shared_ptr<NEMLModel> parse_xml(std::string fname, std::string mname, std::
   }
 }
 
-std::unique_ptr<NEMLModel> parse_xml_unique(std::string fname, std::string mname, std::map<std::string, std::string> substitutions)
+std::unique_ptr<NEMLModel> parse_xml_unique(std::string fname, std::string mname, const std::map<std::string, std::string> & substitutions)
 {
   // Parse the XML file
   rapidxml::file <> xmlFile(fname.c_str());
   rapidxml::xml_document<> doc;
   doc.parse<0>(xmlFile.data());
-
-  // Grab the root node
-  rapidxml::xml_node<> * root = doc.first_node();
-
-  // Find the node with the right name
-  rapidxml::xml_node<> * found = root->first_node(mname.c_str());
-
-  // substitute {variables} in DOM tree
-  recurseSubstitute(found, substitutions);
+  auto found = processNode(doc, mname, substitutions);
 
   // Get the NEMLObject
   std::unique_ptr<NEMLObject> obj = get_object_unique(found);

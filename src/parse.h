@@ -1,38 +1,41 @@
 #ifndef PARSE_H
 #define PARSE_H
 
-#include "objects.h"
-#include "models.h"
 #include "damage.h"
+#include "models.h"
+#include "objects.h"
 
 #include "windows.h"
 
 #include "rapidxml.hpp"
 #include "rapidxml_utils.hpp"
 
-#include <memory>
-#include <string>
-#include <sstream>
-#include <vector>
 #include <algorithm>
 #include <exception>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
 
 namespace neml {
 
 /// perform {variable} substitution in DOM tree
-void recurseSubstitute(rapidxml::xml_node<> * node, std::map<std::string, std::string> substitutions);
+void recurseSubstitute(rapidxml::xml_node<> * node, const std::map<std::string, std::string> & substitutions, std::set<std::string> & used_keys);
+
+/// perform {variable} substitution in DOM tree
+rapidxml::xml_node<> * processNode(rapidxml::xml_document<> & doc, std::string mname, const std::map<std::string, std::string> & substitutions);
 
 /// Parse from a string to a shared_ptr
-  std::shared_ptr<NEMLModel> parse_string(std::string input, std::map<std::string, std::string> substitutions = std::map<std::string, std::string>());
+NEML_EXPORT std::shared_ptr<NEMLModel> parse_string(std::string input, std::string mname = "", const std::map<std::string, std::string> & substitutions = std::map<std::string, std::string>());
 
 /// Parse from a string to a unique_ptr
-std::unique_ptr<NEMLModel> parse_string_unique(std::string input, std::string mname, std::map<std::string, std::string> substitutions = std::map<std::string, std::string>());
+NEML_EXPORT std::unique_ptr<NEMLModel> parse_string_unique(std::string input, std::string mname = "", const std::map<std::string, std::string> & substitutions = std::map<std::string, std::string>());
 
 /// Parse from file to a shared_ptr
-NEML_EXPORT std::shared_ptr<NEMLModel> parse_xml(std::string fname, std::string mname, std::map<std::string, std::string> substitutions = std::map<std::string, std::string>());
+NEML_EXPORT std::shared_ptr<NEMLModel> parse_xml(std::string fname, std::string mname = "", const std::map<std::string, std::string> & substitutions = std::map<std::string, std::string>());
 
 /// Parse from file to a unique_ptr
-NEML_EXPORT std::unique_ptr<NEMLModel> parse_xml_unique(std::string fname, std::string mname, std::map<std::string, std::string> substitutions = std::map<std::string, std::string>());
+NEML_EXPORT std::unique_ptr<NEMLModel> parse_xml_unique(std::string fname, std::string mname = "", const std::map<std::string, std::string> & substitutions = std::map<std::string, std::string>());
 
 /// Extract a NEMLObject from a xml node as a unique_ptr
 NEML_EXPORT std::unique_ptr<NEMLObject> get_object_unique(const rapidxml::xml_node<> * node);
@@ -113,6 +116,26 @@ class NodeNotFound: public std::exception {
   std::string message_;
 };
 
+/// If a model is not found
+class ModelNotFound: public std::exception {
+ public:
+  ModelNotFound(std::string model_name)
+  {
+    std::stringstream ss;
+    ss << "Model with name " << model_name
+        << " was not found in the supplied XML!";
+    message_ = ss.str();
+  };
+
+  const char * what() const throw ()
+  {
+    return message_.c_str();
+  };
+
+ private:
+  std::string message_;
+};
+
 /// If a node is not unique (and it should be)
 class DuplicateNode: public std::exception {
  public:
@@ -161,13 +184,10 @@ class InvalidType: public std::exception {
 /// If a parameter doesn't exist
 class UnknownParameterXML: public std::exception {
  public:
-  UnknownParameterXML(std::string name, std::string param) :
-      name_(name), param_(param)
+  UnknownParameterXML(std::string name, std::string param)
   {
     std::stringstream ss;
-
-    ss << "Object " << name_ << " does not have a parameter called " << param_ << "!";
-
+    ss << "Object " << name << " does not have an XML variable called '" << param << "'!";
     message_ = ss.str();
   };
 
@@ -177,8 +197,26 @@ class UnknownParameterXML: public std::exception {
   };
 
  private:
-  std::string name_, param_, message_;
+  std::string message_;
+};
 
+/// If a parameter doesn't exist
+class UnusedParameterXML: public std::exception {
+ public:
+  UnusedParameterXML(std::string name, std::string params)
+  {
+    std::stringstream ss;
+    ss << "XML variables '" << params << "' supplied to object '" << name << "' were unused!";
+    message_ = ss.str();
+  };
+
+  const char * what() const throw ()
+  {
+    return message_.c_str();
+  };
+
+ private:
+  std::string message_;
 };
 
 /// The object isn't in the factory
